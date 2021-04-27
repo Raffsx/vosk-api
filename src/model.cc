@@ -1,4 +1,4 @@
-// Copyright 2019 Alpha Cephei Inc.
+// Copyright 2019-2021 Alpha Cephei Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -161,6 +161,8 @@ void Model::ConfigureV1()
     std_fst_rxfilename_ = model_path_str_ + "/rescore/G.fst";
     final_ie_rxfilename_ = model_path_str_ + "/ivector/final.ie";
     mfcc_conf_rxfilename_ = model_path_str_ + "/mfcc.conf";
+    global_cmvn_stats_rxfilename_ = model_path_str_ + "/global_cmvn.stats";
+    pitch_conf_rxfilename_ = model_path_str_ + "/pitch.conf";
 }
 
 void Model::ConfigureV2()
@@ -183,6 +185,8 @@ void Model::ConfigureV2()
     std_fst_rxfilename_ = model_path_str_ + "/rescore/G.fst";
     final_ie_rxfilename_ = model_path_str_ + "/ivector/final.ie";
     mfcc_conf_rxfilename_ = model_path_str_ + "/conf/mfcc.conf";
+    global_cmvn_stats_rxfilename_ = model_path_str_ + "/am/global_cmvn.stats";
+    pitch_conf_rxfilename_ = model_path_str_ + "/conf/pitch.conf";
 }
 
 void Model::ReadDataFiles()
@@ -225,10 +229,24 @@ void Model::ReadDataFiles()
         ivector_extraction_opts.global_cmvn_stats_rxfilename = model_path_str_ + "/ivector/global_cmvn.stats";
         ivector_extraction_opts.diag_ubm_rxfilename = model_path_str_ + "/ivector/final.dubm";
         ivector_extraction_opts.ivector_extractor_rxfilename = model_path_str_ + "/ivector/final.ie";
+        ivector_extraction_opts.max_count = 100;
+
         feature_info_.use_ivectors = true;
         feature_info_.ivector_extractor_info.Init(ivector_extraction_opts);
     } else {
         feature_info_.use_ivectors = false;
+    }
+
+    if (stat(global_cmvn_stats_rxfilename_.c_str(), &buffer) == 0) {
+        KALDI_LOG << "Reading CMVN stats from " << global_cmvn_stats_rxfilename_;
+        feature_info_.use_cmvn = true;
+        ReadKaldiObject(global_cmvn_stats_rxfilename_, &feature_info_.global_cmvn_stats);
+    }
+
+    if (stat(pitch_conf_rxfilename_.c_str(), &buffer) == 0) {
+        KALDI_LOG << "Using pitch in feature pipeline";
+        feature_info_.add_pitch = true;
+        ReadConfigFromFile(pitch_conf_rxfilename_, &feature_info_.pitch_opts);
     }
 
     if (stat(hclg_fst_rxfilename_.c_str(), &buffer) == 0) {
@@ -245,6 +263,7 @@ void Model::ReadDataFiles()
     }
 
     word_syms_ = NULL;
+    word_syms_loaded_ = false;
     if (hclg_fst_ && hclg_fst_->OutputSymbols()) {
         word_syms_ = hclg_fst_->OutputSymbols();
     } else if (g_fst_ && g_fst_->OutputSymbols()) {
@@ -255,6 +274,7 @@ void Model::ReadDataFiles()
         if (!(word_syms_ = fst::SymbolTable::ReadText(word_syms_rxfilename_)))
             KALDI_ERR << "Could not read symbol table from file "
                       << word_syms_rxfilename_;
+        word_syms_loaded_ = word_syms_;
     }
     KALDI_ASSERT(word_syms_);
 
@@ -266,6 +286,7 @@ void Model::ReadDataFiles()
         winfo_ = NULL;
     }
 
+    std_lm_fst_ = NULL;
     if (stat(carpa_rxfilename_.c_str(), &buffer) == 0) {
         KALDI_LOG << "Loading CARPA model from " << carpa_rxfilename_;
         std_lm_fst_ = fst::ReadFstKaldi(std_fst_rxfilename_);
@@ -275,8 +296,6 @@ void Model::ReadDataFiles()
             fst::ArcSort(std_lm_fst_, ilabel_comp);
         }
         ReadKaldiObject(carpa_rxfilename_, &const_arpa_);
-    } else {
-        std_lm_fst_ = NULL;
     }
 }
 
@@ -293,12 +312,23 @@ void Model::Unref()
     }
 }
 
+int Model::FindWord(const char *word)
+{
+    if (!word_syms_)
+        return -1;
+
+    return word_syms_->Find(word);
+}
+
 Model::~Model() {
     delete decodable_info_;
     delete trans_model_;
     delete nnet_;
+    if (word_syms_loaded_)
+        delete word_syms_;
     delete winfo_;
     delete hclg_fst_;
     delete hcl_fst_;
     delete g_fst_;
+    delete std_lm_fst_;
 }

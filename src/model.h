@@ -1,4 +1,4 @@
-// Copyright 2019 Alpha Cephei Inc.
+// Copyright 2019-2021 Alpha Cephei Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef MODEL_H_
-#define MODEL_H_
+#ifndef VOSK_MODEL_H
+#define VOSK_MODEL_H
 
 #include "base/kaldi-common.h"
 #include "fstext/fstext-lib.h"
@@ -42,6 +42,7 @@ public:
     Model(const char *model_path);
     void Ref();
     void Unref();
+    int FindWord(const char *word);
 
 protected:
     ~Model();
@@ -63,6 +64,8 @@ protected:
     string std_fst_rxfilename_;
     string final_ie_rxfilename_;
     string mfcc_conf_rxfilename_;
+    string global_cmvn_stats_rxfilename_;
+    string pitch_conf_rxfilename_;
 
     kaldi::OnlineEndpointConfig endpoint_config_;
     kaldi::LatticeFasterDecoderConfig nnet3_decoding_config_;
@@ -73,6 +76,7 @@ protected:
     kaldi::TransitionModel *trans_model_;
     kaldi::nnet3::AmNnetSimple *nnet_;
     const fst::SymbolTable *word_syms_;
+    bool word_syms_loaded_;
     kaldi::WordBoundaryInfo *winfo_;
     vector<int32> disambig_;
 
@@ -86,4 +90,4 @@ protected:
     int ref_cnt_;
 };
 
-#endif /* MODEL_H_ */
+#endif /* VOSK_MODEL_H */

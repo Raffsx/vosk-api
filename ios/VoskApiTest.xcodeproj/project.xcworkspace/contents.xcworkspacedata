@@ -2,6 +2,9 @@
 <Workspace
    version = "1.0">
    <FileRef
-      location = "self:VoskApiTest.xcodeproj">
+      location = "group:/Users/shmyrev/Documents/IOS/VoskApiTest/VoskApiTest/Vosk/vosk-model-small-en-us-0.15">
+   </FileRef>
+   <FileRef
+      location = "self:">
    </FileRef>
 </Workspace>
